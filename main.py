@@ -1,5 +1,4 @@
 import os.path
-
 from controller import Robot, Motor
 import math
 
@@ -16,26 +15,29 @@ compass = robot.getDevice("compass")
 compass.enable(TIME_STEP)
 leftE = robot.getDevice("left wheel sensor")
 leftE.enable(TIME_STEP)
-
 oneDist = robot.getDevice("ps1")
 threeDist = robot.getDevice("ps2")
 fiveDist = robot.getDevice("ps3")
 oneDist.enable(TIME_STEP)
 threeDist.enable(TIME_STEP)
 fiveDist.enable(TIME_STEP)
-
 frontLeft = robot.getDevice("ps0")
 frontRight = robot.getDevice("ps7")
 frontLeft.enable(TIME_STEP)
 frontRight.enable(TIME_STEP)
+answer = compass.getValues()
+angle = math.degrees(math.atan2(answer[0], answer[1]))
 
 class State(object):
     def __init__(self, FSM):
         self.FSM = FSM
+
     def Execute(self):
         pass
+
     def Exit(self):
         pass
+
 
 class Forward(State):
     def __init__(self, FSM):
@@ -50,7 +52,6 @@ class Forward(State):
 
         answer = compass.getValues()
         angle = math.degrees(math.atan2(answer[0], answer[1]))
-        print(self.FSM.getCard(angle))
         if angle % 90 > 45:
             rightMotor.setVelocity(0.6)
             leftMotor.setVelocity(0.4)
@@ -63,13 +64,15 @@ class Forward(State):
         # print(left, right)
 
         if left > 200 and right > 200:
-            self.FSM.println(self.FSM.getCard(angle))
+            # self.FSM.println(self.FSM.getCard(angle))
             self.FSM.ToTransition("toDeadEnd", angle)
         if three < 150 and five < 150 and one < 150:
-            self.FSM.println(self.FSM.getCard(angle))
+            # self.FSM.println(self.FSM.getCard(angle))
             self.FSM.ToTransition("toRight", angle)
+
     def Exit(self):
         print("out of forward mode")
+
 
 class RightTurn(State):
     def __init__(self, FSM):
@@ -91,6 +94,8 @@ class RightTurn(State):
             setDir += 360
 
         if abs(setDir - angle) < 5 and abs(self.FSM.getDirection() - angle) > 10:
+            print("Node added")
+            self.map.addNode(FSM.getCard(angle))
             self.FSM.ToTransition("toForward", angle)
         if one > 200 or three > 200 or five > 200:
             self.FSM.ToTransition("toForward", setDir + 90)
@@ -99,6 +104,7 @@ class RightTurn(State):
 
     def Exit(self):
         print("Out of right mode")
+
 
 class DeadEnd(State):
     def __int__(self, FSM):
@@ -123,12 +129,14 @@ class DeadEnd(State):
     def Exit(self):
         print("out of deadend mode")
 
+
 class Transistion(object):
     def __init__(self, toState):
         self.toState = toState
 
     def Execute(self):
         print("Transition")
+
 
 class FSM(object):
     def __init__(self, char):
@@ -148,9 +156,8 @@ class FSM(object):
     def AddTransition(self, transName, transition):
         self.transitions[transName] = transition
 
-    def AddState(self, stateName, state, file):
+    def AddState(self, stateName, state):
         self.states[stateName] = state
-        self.file = file
 
     def setState(self, stateName):
         self.currentState = self.states[stateName]
@@ -163,21 +170,19 @@ class FSM(object):
         return self.direction
 
     def Execute(self):
-        if(self.trans):
+        if (self.trans):
             self.currentState.Exit()
             self.trans.Execute()
             self.setState(self.trans.toState)
             self.trans = None
         self.currentState.Execute()
 
-    def println(self, directions):
-        if self.prevD != directions:
-            line = str(self.id) + " " + str(self.prevE) + " " + self.prevD
-            self.prevD = directions
-            self.prevE = self.id
-            self.id += 1
-            self.file.write(line)
-            self.file.write("\n")
+    # def println(self, directions):
+    #     if self.prevD != directions:
+    #         line = str(self.id) + " " + str(self.prevE) + " " + self.prevD
+    #         self.prevD = directions
+    #         self.prevE = self.id
+    #         self.id += 1
 
     def getCard(self, bearing):
         if bearing >= -45 and bearing <= 45:
@@ -193,9 +198,12 @@ class FSM(object):
 
 
 Puck = type("Puck", (object,), {})
-class Robot(Puck):
-    def __init__(self):
+
+
+class PuckRobot(Puck):
+    def __init__(self, map):
         self.FSM = FSM(self)
+        self.map = map
         self.FSM.AddState("Forward", Forward(self.FSM))
         self.FSM.AddState("Right", RightTurn(self.FSM))
         self.FSM.AddState("DeadEnd", DeadEnd(self.FSM))
@@ -209,10 +217,13 @@ class Robot(Puck):
     def Execute(self):
         self.FSM.Execute()
 
+
 class Map:
     def __init__(self):
-        # self.it = it + 1
+        self.id = 1
         self.map = dict({})
+        self.prev = 0
+        self.addNode("null")
 
     def loadFile(self):
         if os.path.isfile("data.txt"):
@@ -224,21 +235,23 @@ class Map:
                     temp[len(temp) - 1].strip("\n")
                     self.map.update({temp[0]: {}})
                     for j in range(1, len(temp), 2):
-                        self.map[temp[0]].update({temp[j]:temp[j+1]})
+                        self.map[temp[0]].update({temp[j]: temp[j + 1]})
 
-    def addNode(self, key, direction, current):
-        self.map.update({key: {current:direction}})
+    def addNode(self, direction):
+        self.map.update({self.id: {self.prev: direction}})
+        self.prev = self.id
+        self.id += 1
 
     def addEdge(self, key, direction, current):
-        self.map[key].update({current:direction})
+        self.map[key].update({current: direction})
 
     def printMap(self):
         print(self.map)
 
+
 if __name__ == '__main__':
-        # r = robot()
-        # r.Execute()
-        m = Map()
-        m.loadFile()
-        m.addEdge("0", "N", "6")
-        m.printMap()
+    m = Map()
+    r = PuckRobot(m)
+    while robot.step(TIME_STEP) != -1:
+        r.Execute()
+

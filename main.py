@@ -80,7 +80,6 @@ class ForwardRight(State):
             self.FSM.ToTransition("toDeadEndRight")
         if three < 150 and five < 150 and one < 150:
             self.FSM.ToTransition("toRight")
-        self.FSM.map.postProcess()
 
 
     def Exit(self):
@@ -117,7 +116,6 @@ class ForwardLeft(State):
             self.FSM.ToTransition("toDeadEndLeft")
         if seven < 150 and nine < 150 and eleven < 150:
             self.FSM.ToTransition("toLeft")
-        self.FSM.map.postProcess()
 
 
     def Exit(self):
@@ -247,6 +245,8 @@ class Orient(State):
             self.FSM.change = False
         answer = compass.getValues()
         angle = math.degrees(math.atan2(answer[0], answer[1]))
+        print(self.FSM.toNode)
+        print(self.FSM.prevNode)
         newDir = self.FSM.map.edges[self.FSM.toNode][self.FSM.prevNode][0]
 
         if newDir == 'N':
@@ -299,8 +299,7 @@ class Nav(State):
         else:
             rightMotor.setVelocity(1.0)
             leftMotor.setVelocity(1.0)
-        if current - self.FSM.navDistance > self.FSM.map.edges[self.FSM.toNode][self.FSM.prevNode][1]or (left > 400 and right > 400):
-            print(1.9 / self.FSM.map.edges[self.FSM.toNode][self.FSM.prevNode][1])
+        if current - self.FSM.navDistance > self.FSM.map.edges[self.FSM.toNode][self.FSM.prevNode][1] or (left > 400 and right > 400):
             self.FSM.change = True
             self.FSM.prevNode = self.FSM.toNode
             self.FSM.ToTransition("toOrient")
@@ -397,10 +396,9 @@ class FSM(object):
         if self.prevD is None:
             if self.getCard(angle) != "null":
                 self.prevD = self.getCard(angle)
-                #print(self.prevD)
         if self.direction is None:
             self.direction = angle
-        if frontLeft.getValue() < 100 and frontRight.getValue() < 100 and touch.getValue() > 0.5 and leftE.getValue() > 1:
+        if frontLeft.getValue() < 100 and frontRight.getValue() < 100 and touch.getValue() > 0 and leftE.getValue() > 1:
             answer = compass.getValues()
             angle = math.degrees(math.atan2(answer[0], answer[1]))
             if self.map.trophyNode is None:
@@ -409,6 +407,7 @@ class FSM(object):
             else:
                 currentDist = (leftE.getValue() + rightE.getValue()) / 2
                 self.map.addEdge(self.map.prev, self.map.trophyNode, self.getCard(angle), currentDist - self.prevDistance)
+            #self.map.postProcess()
             self.map.writeFile()
             sys.exit(0)
         self.currentState.Execute()
@@ -523,7 +522,7 @@ class Map:
 
     def writeFile(self):
         self.state += 1
-        with open("data.txt", "w") as file:
+        with open("test.txt", "w") as file:
             line = ""
             file.write(str(self.state) + ",")
             file.write(str(self.trophyNode))
@@ -541,20 +540,64 @@ class Map:
                 file.write("\n")
         file.close()
 
+    def xDirect(self, num):
+        if num > 0:
+            dir = ['W', 'E']
+        else:
+            dir = ['E', 'W']
+        return dir
+
+    def yDirect(self, num):
+        if num > 0:
+            dir = ['N', 'S']
+        else:
+            dir = ['S', 'N']
+        return dir
+
     def postProcess(self):
+        nodes = []
+        edges = []
         for i, posi in self.nodes.items():
             for j, posj in self.nodes.items():
                 if i != j:
                     xDiff = posi[0] - posj[0]
                     yDiff = posi[1] - posj[1]
                     dist = math.sqrt(pow(xDiff, 2) + pow(yDiff, 2))
-
                     for l, posl in self.nodes.items():
+                        if i == 30 and j == 31 and l == 33:
+                            print(self.edges[i], i)
                         if abs(posl[1] - posi[1]) < 3 and abs(posl[1] - posj[1]) < 3 and j in self.edges[i] and yDiff < 3 and abs(posl[0] - posi[0]) < abs(xDiff) and abs(posl[0] - posj[0]) < abs(xDiff):
-                            print(i, j, l)
+                            y = (posi[1] + posj[1]) / 2
+                            x = posl[0]
+                            iTo = x - posi[0]
+                            jTo = x - posj[0]
+                            lTo = y - posl[1]
+                            iDir = self.xDirect(iTo)
+                            jDir = self.xDirect(jTo)
+                            lDir = self.yDirect(lTo)
+                            nodes.append([x, y])
+                            edges.append([i, iDir[0], abs(iTo)])
+                            edges.append([i, iDir[1], abs(iTo)])
+                            edges.append([j, jDir[0], abs(jTo)])
+                            edges.append([j, jDir[1], abs(jTo)])
+                            edges.append([l, lDir[0], abs(lTo)])
+                            edges.append([l, lDir[1], abs(lTo)])
                         if abs(posl[0] - posi[0]) < 3 and abs(posl[0] - posj[0]) < 3 and j in self.edges[i] and xDiff < 3 and abs(posl[1] - posi[1]) < abs(yDiff) and abs(posl[1] - posj[1]) < abs(yDiff):
-                            print(i, j, l)
-
+                            x = (posi[1] + posj[1]) / 2
+                            y = posl[0]
+                            iTo = y - posi[0]
+                            jTo = y - posj[0]
+                            lTo = x - posl[1]
+                            iDir = self.yDirect(iTo)
+                            jDir = self.yDirect(jTo)
+                            lDir = self.xDirect(lTo)
+                            nodes.append([x, y])
+                            edges.append([i, iDir[0], abs(iTo)])
+                            edges.append([i, iDir[1], abs(iTo)])
+                            edges.append([j, jDir[0], abs(jTo)])
+                            edges.append([j, jDir[1], abs(jTo)])
+                            edges.append([l, lDir[0], abs(lTo)])
+                            edges.append([l, lDir[1], abs(lTo)])
 
                     if dist < 3:
                         if j not in self.edges[i] or i not in self.edges[j]:
@@ -580,10 +623,19 @@ class Map:
                                 opposite = "W"
                             else:
                                 print("Post processing error")
-                            #print("post process edge added")
-                            #print(i, j, direction, dist, xDiff, yDiff)
                             self.addEdge(i, j, direction, dist)
                             self.addEdge(j, i, opposite, dist)
+        for i in range(len(edges)):
+            if i % 6 == 0:
+                print(i)
+                n = nodes[int(i/6)]
+                self.addNode(n[0], n[1], False)
+                self.removeEdge(edges[i][0], edges[i+2][0])
+            e = edges[i]
+            if i % 2 == 0:
+                self.addEdge(self.prev, e[0], e[1], e[2])
+            else:
+                self.addEdge(e[0], self.prev, e[1], e[2])
 
     def minDistance(self, dist, sptSet):
         min = float('inf')
@@ -614,14 +666,18 @@ class Map:
                         path[y].append(j)
         temp = path[self.trophyNode]
         temp.reverse()
+        print(temp)
+        for i in range(len(temp) - 1):
+            print(self.edges[temp[i]][temp[i+1]])
         self.path = temp
 
 
 if __name__ == '__main__':
     m = Map()
     m.loadFile()
-    m.printMap()
-    #m.postProcess()
-    #r = PuckRobot(m)
-    #while robot.step(TIME_STEP) != -1:
-        #r.Execute()
+    m.postProcess()
+    m.shortestPath()
+    m.writeFile()
+    # r = PuckRobot(m)
+    # while robot.step(TIME_STEP) != -1:
+    #     r.Execute()

@@ -408,7 +408,7 @@ class FSM(object):
                 currentDist = (leftE.getValue() + rightE.getValue()) / 2
                 self.map.addEdge(self.map.prev, self.map.trophyNode, self.getCard(angle), currentDist - self.prevDistance)
             #self.map.postProcess()
-            self.map.writeFile()
+            #self.map.writeFile()
             sys.exit(0)
         self.currentState.Execute()
 
@@ -540,65 +540,35 @@ class Map:
                 file.write("\n")
         file.close()
 
-    def xDirect(self, num):
-        if num > 0:
-            dir = ['W', 'E']
+    def vector(self, one, two):
+        x = two[0] - one[0]
+        y = two[1] - one[1]
+        card = ''
+        opp = ''
+        if abs(x) < abs(y):
+            if y > 0:
+                card = 'N'
+                opp = 'S'
+            else:
+                card = 'S'
+                opp = 'N'
         else:
-            dir = ['E', 'W']
-        return dir
-
-    def yDirect(self, num):
-        if num > 0:
-            dir = ['N', 'S']
-        else:
-            dir = ['S', 'N']
-        return dir
+            if x > 0:
+                card = 'W'
+                opp = 'E'
+            else:
+                card = 'E'
+                opp = 'W'
+        dist = math.sqrt(pow(x, 2) + pow(y, 2))
+        return [card, opp, dist]
 
     def postProcess(self):
-        nodes = []
-        edges = []
         for i, posi in self.nodes.items():
             for j, posj in self.nodes.items():
                 if i != j:
                     xDiff = posi[0] - posj[0]
                     yDiff = posi[1] - posj[1]
                     dist = math.sqrt(pow(xDiff, 2) + pow(yDiff, 2))
-                    for l, posl in self.nodes.items():
-                        if i == 30 and j == 31 and l == 33:
-                            print(self.edges[i], i)
-                        if abs(posl[1] - posi[1]) < 3 and abs(posl[1] - posj[1]) < 3 and j in self.edges[i] and yDiff < 3 and abs(posl[0] - posi[0]) < abs(xDiff) and abs(posl[0] - posj[0]) < abs(xDiff):
-                            y = (posi[1] + posj[1]) / 2
-                            x = posl[0]
-                            iTo = x - posi[0]
-                            jTo = x - posj[0]
-                            lTo = y - posl[1]
-                            iDir = self.xDirect(iTo)
-                            jDir = self.xDirect(jTo)
-                            lDir = self.yDirect(lTo)
-                            nodes.append([x, y])
-                            edges.append([i, iDir[0], abs(iTo)])
-                            edges.append([i, iDir[1], abs(iTo)])
-                            edges.append([j, jDir[0], abs(jTo)])
-                            edges.append([j, jDir[1], abs(jTo)])
-                            edges.append([l, lDir[0], abs(lTo)])
-                            edges.append([l, lDir[1], abs(lTo)])
-                        if abs(posl[0] - posi[0]) < 3 and abs(posl[0] - posj[0]) < 3 and j in self.edges[i] and xDiff < 3 and abs(posl[1] - posi[1]) < abs(yDiff) and abs(posl[1] - posj[1]) < abs(yDiff):
-                            x = (posi[1] + posj[1]) / 2
-                            y = posl[0]
-                            iTo = y - posi[0]
-                            jTo = y - posj[0]
-                            lTo = x - posl[1]
-                            iDir = self.yDirect(iTo)
-                            jDir = self.yDirect(jTo)
-                            lDir = self.xDirect(lTo)
-                            nodes.append([x, y])
-                            edges.append([i, iDir[0], abs(iTo)])
-                            edges.append([i, iDir[1], abs(iTo)])
-                            edges.append([j, jDir[0], abs(jTo)])
-                            edges.append([j, jDir[1], abs(jTo)])
-                            edges.append([l, lDir[0], abs(lTo)])
-                            edges.append([l, lDir[1], abs(lTo)])
-
                     if dist < 3:
                         if j not in self.edges[i] or i not in self.edges[j]:
                             direction = ""
@@ -625,17 +595,66 @@ class Map:
                                 print("Post processing error")
                             self.addEdge(i, j, direction, dist)
                             self.addEdge(j, i, opposite, dist)
-        for i in range(len(edges)):
-            if i % 6 == 0:
-                print(i)
-                n = nodes[int(i/6)]
-                self.addNode(n[0], n[1], False)
-                self.removeEdge(edges[i][0], edges[i+2][0])
-            e = edges[i]
-            if i % 2 == 0:
-                self.addEdge(self.prev, e[0], e[1], e[2])
-            else:
-                self.addEdge(e[0], self.prev, e[1], e[2])
+        nodes = []
+        for i, posi in self.nodes.items():
+            for j, posj in self.nodes.items():
+                if i != j:
+                    xDiff = posi[0] - posj[0]
+                    yDiff = posi[1] - posj[1]
+                    for l, posl in self.nodes.items():
+                        if l not in self.edges[i] and l not in self.edges[j] and abs(posl[0] - posi[0]) < abs(xDiff) and abs(posl[0] - posj[0]) < abs(xDiff) and j in self.edges[i] and abs(posl[1] - posi[1]) < 3 and abs(posl[1] - posj[1]) < 3 and posi[0] > posj[0]:
+                            x = posl[0]
+                            y = (posi[1] + posj[1]) / 2
+                            nodes.append([x,y,i,j,l])
+                            #print(i,j,l)
+        delete = []
+        dups = []
+        for i in range(len(nodes)):
+            for j in range(i, len(nodes)):
+                if i != j and nodes[i][2] == nodes[j][2] and nodes[i][3] == nodes[j][3]:
+                    dups.append([nodes[i], nodes[j]])
+                    delete.append(j)
+        for i in delete:
+            nodes.pop(i)
+
+        for i in nodes:
+            self.addNode(i[0],i[1], False)
+            self.addEdgePost(i[2], i[3], i[4], self.prev)
+        print(dups)
+        for i in dups:
+            re = -1
+            for j in self.nodes.keys():
+                isEdge = True
+                for l in range(2, len(i[0])):
+                    if i[0][l] not in self.edges[j]:
+                        isEdge = False
+                if isEdge:
+                    re = j
+                    break
+            if re != -1:
+                self.addNode(i[1][0], i[1][1], False)
+                print(self.nodes[re][0], self.nodes[i[0][2]][0], self.nodes[re][0], self.nodes[i[0][4]][0])
+                print(self.nodes[re][0], self.nodes[i[0][4]][0],  self.nodes[re][0], self.nodes[i[0][3]][0])
+                if self.nodes[re][0] < self.nodes[i[0][2]][0] and self.nodes[re][0] > self.nodes[i[1][4]][0]:
+                    self.addEdgePost(i[0][2], i[0][4], i[1][4], self.prev)
+                elif self.nodes[re][0] < self.nodes[i[1][4]][0] and self.nodes[re][0] > self.nodes[i[0][3]][0]:
+                    self.addEdgePost(i[0][4], i[0][3], i[1][4], self.prev)
+
+    def addEdgePost(self, node1, node2, node3, newNode):
+        self.removeEdge(node1, node2)
+        coord1 = self.nodes[node1]
+        coord2 = self.nodes[node2]
+        coord3 = self.nodes[node3]
+        coordNew = self.nodes[newNode]
+        oneEdge = self.vector(coordNew, coord1)
+        twoEdge = self.vector(coord2, coordNew)
+        threeEdge = self.vector(coord3, coordNew)
+        self.addEdge(node1, newNode, oneEdge[0], oneEdge[2])
+        self.addEdge(newNode, node1, oneEdge[1], oneEdge[2])
+        self.addEdge(node2, newNode, twoEdge[0], twoEdge[2])
+        self.addEdge(newNode, node2, twoEdge[1], twoEdge[2])
+        self.addEdge(node3, newNode, threeEdge[0], threeEdge[2])
+        self.addEdge(newNode, node3, threeEdge[1], threeEdge[2])
 
     def minDistance(self, dist, sptSet):
         min = float('inf')
@@ -676,7 +695,7 @@ if __name__ == '__main__':
     m = Map()
     m.loadFile()
     m.postProcess()
-    m.shortestPath()
+    #m.shortestPath()
     m.writeFile()
     # r = PuckRobot(m)
     # while robot.step(TIME_STEP) != -1:

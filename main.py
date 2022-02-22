@@ -4,6 +4,8 @@ import sys
 from controller import Robot, Motor
 import math
 
+#by Nic Ceccanti
+
 TIME_STEP = 64
 robot = Robot()
 #print("Starting")
@@ -83,12 +85,11 @@ class ForwardRight(State):
             self.FSM.direction = angle
             self.FSM.ToTransition("toDeadEndRight")
         if three < 80 and five < 80 and one < 80:
-            print(three, five, one)
             self.FSM.ToTransition("toRight")
 
 
     def Exit(self):
-        print("out of forward mode")
+        #print("out of forward mode")
         pass
 
 class ForwardLeft(State):
@@ -107,7 +108,7 @@ class ForwardLeft(State):
 
         if eleven > 200:
             rightMotor.setVelocity(4.0)
-            leftMotor.setVelocity(4.6)
+            leftMotor.setVelocity(4.5)
         if angle % 90 < 42.5:
             rightMotor.setVelocity(4.2)
             leftMotor.setVelocity(4.5)
@@ -125,7 +126,7 @@ class ForwardLeft(State):
 
 
     def Exit(self):
-        print("out of forward mode")
+        #print("out of forward mode")
         pass
 
 class LeftTurn(State):
@@ -173,7 +174,7 @@ class LeftTurn(State):
         #     self.FSM.ToTransition("toForwardLeft")
 
     def Exit(self):
-        print("Out of left mode")
+        #print("Out of left mode")
         pass
 
 class RightTurn(State):
@@ -204,7 +205,7 @@ class RightTurn(State):
             self.FSM.rotationDist = currentDist - self.FSM.coast
             rightMotor.setVelocity(-3.0)
             leftMotor.setVelocity(3.0)
-            print(self.FSM.rotationDist)
+            #print(self.FSM.rotationDist)
 
         if left > 200 or right > 200:
             self.FSM.direction = setDir + 5
@@ -222,7 +223,7 @@ class RightTurn(State):
         #     self.FSM.ToTransition("toForwardRight")
 
     def Exit(self):
-        print("Out of right mode")
+        #print("Out of right mode")
         pass
 
 class DeadEndRight(State):
@@ -255,7 +256,7 @@ class DeadEndRight(State):
             self.FSM.ToTransition("toForwardRight")
 
     def Exit(self):
-        print("out of deadend mode")
+        #print("out of deadend mode")
         pass
 
 class DeadEndLeft(State):
@@ -308,7 +309,7 @@ class Orient(State):
         angle = math.degrees(math.atan2(answer[0], answer[1]))
         freeze = False
         if self.FSM.toNode != self.FSM.prevNode:
-            print(self.FSM.toNode, self.FSM.prevNode)
+            #print(self.FSM.toNode, self.FSM.prevNode)
             newDir = self.FSM.map.edges[self.FSM.toNode][self.FSM.prevNode][0]
         else:
             newDir = self.FSM.oldDir
@@ -327,7 +328,7 @@ class Orient(State):
                 newAngle = 180
         else:
             newAngle = "error"
-            print("error")
+            #print("error")
         if (newAngle < 0 and angle < 0) or (newAngle >= 0 and angle >= 0):
             setDir = newAngle - angle
         else:
@@ -335,6 +336,7 @@ class Orient(State):
         if abs(setDir) < 5 and not freeze:
             self.FSM.navDistance = currentDist
             self.FSM.ToTransition("toNav")
+        #print(setDir, newAngle, angle)
         if not freeze:
             if setDir < 0:
                 leftMotor.setVelocity(3.0)
@@ -345,11 +347,9 @@ class Orient(State):
         else:
             leftMotor.setVelocity(3.0)
             rightMotor.setVelocity(3.0)
-        if left > 400 and right > 400:
-            print("yes")
 
     def Exit(self):
-        print("out of orient mode")
+        #print("out of orient mode")
         pass
 
 class Nav(State):
@@ -378,15 +378,15 @@ class Nav(State):
             rightMotor.setVelocity(6.0)
             leftMotor.setVelocity(6.0)
             # -0.4
-        if current - self.FSM.navDistance > self.FSM.map.edges[self.FSM.toNode][self.FSM.prevNode][1] or (left > 400 and right > 400 and current - self.FSM.navDistance > self.FSM.map.edges[self.FSM.toNode][self.FSM.prevNode][1] / 3):
+        if current - self.FSM.navDistance > self.FSM.map.edges[self.FSM.toNode][self.FSM.prevNode][1] - 0.2 or (left > 400 and right > 400 and current - self.FSM.navDistance > self.FSM.map.edges[self.FSM.toNode][self.FSM.prevNode][1] / 3):
             self.FSM.change = True
             self.FSM.prevNode = self.FSM.toNode
             self.FSM.ToTransition("toOrient")
-        elif left > 400 and right > 400 and current - self.FSM.navDistance < self.FSM.map.edges[self.FSM.toNode][self.FSM.prevNode][1] / 3:
+        elif (left > 400 and right > 400) and (current - self.FSM.navDistance < self.FSM.map.edges[self.FSM.toNode][self.FSM.prevNode][1] / 3):
             self.FSM.ToTransition("toAvoid")
 
     def Exit(self):
-        print("out of nav mode")
+        #print("out of nav mode")
         pass
 
 class Avoiddance(State):
@@ -399,19 +399,36 @@ class Avoiddance(State):
         one = oneDist.getValue()
         eleven = elevenDist.getValue()
         dir = one - eleven
-        if dir > 0:
-            leftMotor.setVelocity(-1.0)
-            rightMotor.setVelocity(1.0)
+        answer = compass.getValues()
+        angle = math.degrees(math.atan2(answer[0], answer[1]))
+        if self.FSM.avoid is None:
+            self.FSM.avoid = dir
+            self.FSM.avoidDir
+        if self.FSM.avoid > 0:
+            leftMotor.setVelocity(-3.0)
+            rightMotor.setVelocity(3.0)
+            if self.FSM.avoidDir is None:
+                self.FSM.avoidDir = angle - 45
         else:
-            leftMotor.setVelocity(1.0)
-            rightMotor.setVelocity(-1.0)
-
-        if left < 200 and right < 200:
-            self.FSM.navDistance +=  ((leftE.getValue() + rightE.getValue()) / 2) + self.FSM.navDistance
-            self.FSM.ToTransition("toNav")
+            leftMotor.setVelocity(3.0)
+            rightMotor.setVelocity(-3.0)
+            if self.FSM.avoidDir is None:
+                self.FSM.avoidDir = angle + 45
+        setDir = self.FSM.avoidDir
+        if setDir < -180:
+            setDir += 360
+        elif setDir > 180:
+            setDir -= 360
+        #print(setDir, angle)
+        if abs(setDir - angle) < 10:
+            self.FSM.navDistance += ((leftE.getValue() + rightE.getValue()) / 2) + self.FSM.navDistance
+            self.FSM.avoid = None
+            self.FSM.avoidDir = None
+            self.FSM.ToTransition("toOrient")
 
     def Exit(self):
-        print("out of avoidance mode")
+        #print("out of avoidance mode")
+        pass
 
 
 class Transistion(object):
@@ -450,6 +467,8 @@ class FSM(object):
         self.turnMod = 0
         self.endMod = 0
         self.rotationDist = 0
+        self.avoid = None
+        self.avoidDir = None
 
     def AddTransition(self, transName, transition):
         self.transitions[transName] = transition
@@ -486,7 +505,7 @@ class FSM(object):
             currentID = self.map.id
             prevID = self.map.prev
             if self.trophy:
-                sign = 'D'
+                sign = 'N'
             self.map.addNode(self.posx, self.posy, self.trophy, sign)
             if(leg < 0.1):
                 leg = 0
@@ -515,7 +534,7 @@ class FSM(object):
         l3 = frontLeft.getValue() < 100 and frontRight.getValue() < 100 and leftE.getValue() > 1
         #print(l1, l2, l3)
         if (l1 or l2) and l3:
-            print(l1, l2, l3)
+            #print(l1, l2, l3)
             answer = compass.getValues()
             angle = math.degrees(math.atan2(answer[0], answer[1]))
             if self.map.trophyNode is None:
@@ -534,7 +553,7 @@ class FSM(object):
                 self.map.endGame()
                 pass
             if self.erase:
-                #self.map.eraseFile()
+                self.map.eraseFile()
                 pass
             else:
                 self.map.writeFile()
@@ -636,7 +655,7 @@ class Map:
             self.prev = 0
 
     def addNode(self, x, y, trophyStatus, isDeadEnd):
-        print("node added", self.id, isDeadEnd)
+        #print("node added", self.id, isDeadEnd)
         self.nodes.update({self.id: [x, y, isDeadEnd]})
         self.edges[self.id] = dict({})
         if trophyStatus:
@@ -710,10 +729,10 @@ class Map:
         cardinal = self.getCard()
         while cardinal == "null":
             cardinal = self.getCard()
-            print(cardinal)
+            #print(cardinal)
         isDir = True
         for i in self.edges[self.trophyNode].keys():
-            print(self.edges[self.trophyNode][i][0], cardinal, "trophy")
+            #print(self.edges[self.trophyNode][i][0], cardinal, "trophy")
             if self.edges[self.trophyNode][i][0] == cardinal:
                 isDir = False
         if isDir:
@@ -736,13 +755,13 @@ class Map:
             tempNode = self.trophyNode
             temp[0] += modX
             temp[1] += modY
-            print("bruh")
+            #print("bruh")
             self.addNode(temp[0], temp[1], True, 'N')
             self.addEdge(self.prev, tempNode, opp, ext)
             self.addEdge(tempNode, self.prev, cardinal, ext)
 
     def postProcess(self):
-        print("processing data")
+        #print("processing data")
         for i, posi in self.nodes.items():
             for j, posj in self.nodes.items():
                 if i != j and posi[2] != 'D' or posj[2] != 'D':
@@ -786,8 +805,6 @@ class Map:
 
         nodesX = []
         nodesY = []
-        print(nodesX)
-        print(nodesY)
         for i, posi in self.nodes.items():
             for j, posj in self.nodes.items():
                 if i != j and posi[2] != 'D' or posj[2] != 'D':
@@ -820,8 +837,7 @@ class Map:
                 if i != j and nodesY[i][2] == nodesY[j][2] and nodesY[i][3] == nodesY[j][3]:
                     dupsY.append([nodesY[i], nodesY[j]])
                     deleteY.append(j)
-        print(nodesX)
-        print(deleteX)
+
         for i in deleteX:
             if i in nodesX:
                 nodesX.pop(i)
@@ -830,12 +846,10 @@ class Map:
                 nodesY.pop(i)
 
         for i in nodesX:
-            print("821")
             if i[2] in self.edges[i[3]]:
                 self.addNode(i[0],i[1], False, 'N')
                 self.addEdgePostX(i[2], i[3], i[4], self.prev)
         for i in nodesY:
-            print("825")
             if i[2] in self.edges[i[3]]:
                 self.addNode(i[0],i[1], False, 'N')
                 self.addEdgePostY(i[2], i[3], i[4], self.prev)
@@ -869,8 +883,6 @@ class Map:
                     re = j
                     break
             if re != -1:
-                print("858")
-                print("post process")
                 if self.nodes[re][1] < i[1][1] and self.nodes[i[1][2]][1] > i[1][1]:
                     self.addNode(i[1][0], i[1][1], False, 'N')
                     self.addEdgePostY(i[1][2], re, i[1][4], self.prev)
@@ -910,26 +922,42 @@ class Map:
         self.addEdge(node3, newNode, threeEdge[0], threeEdge[2])
         self.addEdge(newNode, node3, threeEdge[1], threeEdge[2])
 
+    def minDistance(self, dist, sptSet):
+        min = float('inf')
+        for i in self.edges.keys():
+            for j in self.edges[i].keys():
+                if dist[j] < min and sptSet[j] == False:
+                    min = dist[j]
+                    min_index = j
+        return min_index
+
     def shortestPath(self):
-        unvisited = {node: None for node in self.nodes}
-        path = {node: [] for node in self.nodes}
-        visited = {}
-        current = 0
-        currentDistance = 0
-        unvisited[current] = currentDistance
-        while True:
-            for neighbour, distance in self.edges[current].items():
-                if neighbour not in unvisited: continue
-                newDistance = currentDistance + distance[1]
-                if unvisited[neighbour] is None or unvisited[neighbour] > newDistance:
-                    unvisited[neighbour] = newDistance
-                    path[neighbour].append(unvisited[neighbour])
-            visited[current] = currentDistance
-            del unvisited[current]
-            if not unvisited: break
-            candidates = [node for node in unvisited.items() if node[1]]
-            current, currentDistance = sorted(candidates, key = lambda x: x[1])[0]
-        print(path)
+        dist = []
+        sptSet = []
+        path = []
+        for i in self.edges.keys():
+            dist.append(float('inf'))
+            sptSet.append(False)
+            path.append([i])
+        dist[0] = 0
+        for cout in range(len(self.nodes)):
+            x = self.minDistance(dist, sptSet)
+            sptSet[x] = True
+            for y in self.edges[x].keys():
+                if self.edges[x][y][1] > 0 and sptSet[y] == False and dist[y] > dist[x] + self.edges[x][y][1]:
+                    dist[y] = dist[x] + self.edges[x][y][1]
+                    for j in path[x]:
+                        if path[y][len(path[y]) - 1] in self.edges[j]:
+                            path[y].append(j)
+                        else:
+                            break
+
+        temp = path[self.trophyNode]
+        temp.reverse()
+        # print(temp)
+        # for i in range(len(temp) - 1):
+        #     print(temp[i], temp[i + 1], self.edges[temp[i]][temp[i + 1]])
+        self.path = temp
 
     def getCard(self):
         answer = compass.getValues()
@@ -949,7 +977,6 @@ class Map:
 if __name__ == '__main__':
     m = Map()
     m.loadFile()
-    m.shortestPath()
-    # r = PuckRobot(m)
-    # while robot.step(TIME_STEP) != -1:
-    #     r.Execute()
+    r = PuckRobot(m)
+    while robot.step(TIME_STEP) != -1:
+        r.Execute()
